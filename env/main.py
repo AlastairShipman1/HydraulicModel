@@ -2,14 +2,15 @@ import numpy as np
 
 '''
 Please note we will be using metric units wherever possible, and where not possible it will be noted clearly
+
+This model will output an evacuation time for an arbitrary collection of elements
+These elements will all be connected, eventually, to the outside. All exit routes are specified in advance.
+The assumption is that all people immediately walk down their specified route, at predetermined velocity/density relationships
+Queuing is accommodated.
+
+need to make sure we can understand dominance of staircases over doors?
+
 '''
-class Global_timer():
-
-    def __init__(self):
-        self.global_time=0
-
-    def step_time(self):
-        self.global_time+=1
 
 class Element():
     #placeholder class for your destinations
@@ -30,6 +31,8 @@ class Element():
         self.inflow=0
         self.max_inflow=np.inf
         self.max_outflow=np.inf
+        self.possible_queuing=False
+        self.queuing=False
         self.queue_length=0
 
         self.max_speed=1.19 # m/s
@@ -58,12 +61,19 @@ class Element():
         self.check_current_status()
         self.check_inflows()
         self.check_outflows()
-        self.refresh_variables()
+#        self.refresh_variables()
         self.time+=1
         self.initial_flow_timer+=1
 
     def check_current_status(self):
         'here we need to check the element has people are queuing, walking or is empty'
+        if self.possible_queuing:
+            if self.queue_length>0:
+                self.queuing=True
+
+        # if queuing, we need to do something about the initial flow timer?
+        # we could also highlight that 'here is a bottleneck'?
+        #
 
     def check_global_time(self):
         'check timing relative to global timer'
@@ -134,22 +144,39 @@ class Outdoors (Element):
         self.length=np.inf
         self.max_flow=np.inf
         self.area=np.inf
-        self.population=np.inf
+        self.population=0 # done here to ensure the density is always zero
 class Room(Element):
     'check'
 class Corridor(Element):
     'also aisle, ramp, doorway'
-    def __init__(self):
-        self.a=0.266
-        self.k=1.4
 class Staircase(Element):
     'check'
 class Door(Element):
     'check'
 
+# class used to keep track of the time in each element. can we create this as a singleton class?
+class Singleton(type):
+    _instances = {}
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+class Global_timer(metaclass=Singleton):
+
+    def __init__(self):
+        self.global_time=0
+
+    def step_time(self):
+        self.global_time+=1
 
 def step_time(environment, global_timer, timestep):
     global_timer.step_time()
+
+    # here we need to randomise the order of the elements in the environment as we cycle through them
+    # otherwise, if there is a blockage, one element will never actually evacuate until the other elements have emptied their queues
+    # this is only an issue if you have multiple entrypoints
+    # and is not an issue if you define where the flows will be coming from (e.g. staircase empties floor by floor)
     for element in environment:
         element.step_time()
 
