@@ -1,4 +1,5 @@
 import numpy as np
+from collections import deque
 
 '''
 Please note we will be using metric units wherever possible, and where not possible it will be noted clearly
@@ -84,6 +85,7 @@ class Element():
         self.time = 0
 
         # it would be easy enough to change this to a population of agents, each a class of person, with travel speed etc.
+        self.people=deque
         self.population = population
         self.max_population = np.inf  # we should define the max population density, and then calculate the max element population
         self.outflow=0
@@ -105,19 +107,18 @@ class Element():
         if self.type=="Staircase":
             self.tread=tread
             self.riser=riser
+            # it would also be easy to just look things up in a table, no?
             self.max_speed=0.941-0.066667*self.riser+0.0416667*self.tread #values from regression performed on data
             self.k=0.45-0.2*self.riser+0.07*self.tread #same again
             self.max_flow_rate=0.271667-0.006667*self.riser+0.071667*self.tread #and here
 
-    def define_entrypoint(self, entry_element:Element, entry_transition: Transition):
+    def define_entrypoint(self, entry_element:Element):
         #initially have only one entrypoint. could extend this to multiple fairly easily?
         self.entry_element=entry_element
-        self.entry_transition=entry_transition
 
-    def define_exitpoint (self, exit_element:Element, exit_transition:Transition):
+    def define_exitpoint (self, exit_element:Element):
         #initially have only one exitpoint. may need to extend this if there is queuing?
         self.exit_element=exit_element
-        self.exit_transition=exit_transition
 
     def step_time(self):
         self.check_global_time()# we need to do something with this- either slow everything else down, or step through everything again
@@ -129,7 +130,6 @@ class Element():
         self.time+=1
         self.initial_flow_timer+=1
         self.check_queuing()
-
 
     def check_current_status(self):
         'here we need to check the element has people are queuing, walking or is empty'
@@ -168,7 +168,6 @@ class Element():
             self.inflow=self.entrypoint.outflow
             if self.inflow>0 and self.population==0:
                 self.start_initial_flow_timer()
-
 
     def calc_density_then_velocity(self):
         self.density = self.area/self.population
@@ -212,12 +211,12 @@ class Element():
         return internal_flow*self.width/self.exitpoint.width
 
     def calculate_post_transition_density_inward_flow(self):
-        a=
-        b=
-        c=
+        a=self.a*self.k*self.width
+        b=-self.k*self.width
+        c=self.inflow
         x1=(-b -np.sqrt(b**2-4*a*c))/(2*a)
         x2=(-b +np.sqrt(b**2-4*a*c))/(2*a)
-        self.density=min(x1, x2, self.max_flow_rate)
+        self.density=min(x1, x2)
         return min(x1, x2)
 
     def check_queuing(self):
@@ -285,15 +284,14 @@ gl=Global_logger()
 gt=Global_timer()
 environment=[]
 
-room=Room(10, 10, 100)
+
 stairs=Staircase(10, 10, 0, 1, 1)
 corridor=Corridor(20, 2, 0)
 door=Door()
 
 outdoors=Outdoors()
 
-room.define_exitpoint(stairs)
-stairs.define_entrypoint(room)
+
 stairs.define_exitpoint(corridor)
 corridor.define_entrypoint(stairs)
 corridor.define_exitpoint(door)
