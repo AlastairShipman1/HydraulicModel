@@ -1,5 +1,6 @@
 import numpy as np
 from collections import deque
+import config
 
 '''
 Please note we will be using metric units wherever possible, and where not possible it will be noted clearly
@@ -24,53 +25,119 @@ The hydraulic model (is this first order or second order?)
 7) Each person in the group of people needs to be an object with a counter for how long they have been moving in the element they are in
 7.1) Need to adapt this for queuing
 '''
+# class used to keep track of the time in each element. can we create this as a singleton class? don't worry about loggers just yet
+class Singleton(type):
+    _instances = {}
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+class Global_timer(metaclass=Singleton):
+
+    def __init__(self):
+        self.global_time=0
+
+    def step_time(self):
+        self.global_time+=config.timestep
+class Global_logger(metaclass=Singleton):
+    def __init__(self):
+        self.log=[]
+
+    def add_entry(self, entry):
+        self.log.append(entry)
 
 class Element():
-    #placeholder class for your destinations
-    max_flows={}
-    boundary_layers={'Stairs':0.15 , 'Handrail':0.98, 'Chair':0, 'Corridor':0.2, 'Obstacles':0.1, 'Concourse':0.46,'Door':0.15}
+    #placeholder class for your elements, keeps track of how many people are in each element, and when they enter/leave/queue
+    class Population_tracker():
+        def __init__(self, population):
+            self.queue_length=0
+            self.population=population
+            self.unimpeded_traversal_time=self.length/self.max_speed
+            self.flow_timer=0
+            self.possible_queuing = False
+            self.queuing = False
+            #need to implement a queue for the population, to make sure that it is first in first out.
+            #self.people = deque
+            self.max_population = np.inf  # we should define the max population density, and then calculate the max element population
 
-    def __init__(self, name, length, width, element_type, population, global_logger:Global_logger, global_timer:Global_timer, boundary_layer1=None, boundary_layer2=None, tread=None, riser=None):
+        def increment_flow_timer(self):
+            self.flow_timer+=config.timestep
+
+
+
+
+    def __init__(self, name, length, width, element_type, population, global_timer:Global_timer, boundary_layer1=None, boundary_layer2=None, tread=None, riser=None):
+        boundary_layers = {'Stairs': 0.15, 'Handrail': 0.98, 'Chair': 0, 'Corridor': 0.2, 'Obstacles': 0.1,
+                           'Concourse': 0.46, 'Door': 0.15}
+
         self.name=name
         self.length=length
         self.width=width-boundary_layers[boundary_layer1]-boundary_layers[boundary_layer2] #this is effective width. will it being Nonetype present an issue?
         self.area=self.length*self.width
         self.type=element_type
+
         self.global_timer=global_timer
-        self.global_logger=global_logger
         self.time = 0
 
-        # it would be easy enough to change this to a population of agents, each a class of person, with travel speed etc.
-        self.people=deque
-        self.population = population
-        self.max_population = np.inf  # we should define the max population density, and then calculate the max element population
         self.outflow=0
         self.inflow=0
         # here we have to define the max inflow and outflow of each element.
         self.max_inflow=np.inf
         self.max_outflow=np.inf
 
-        self.possible_queuing=False
-        self.queuing=False
-        self.queue_length=0
+        self.population_tracker=self.Population_tracker(population)
 
-        self.max_speed=1.19 # m/s
-        self.max_flow_rate=1.3*self.width #ppl/s/m per unit effective width * effective width
+        '''
+        This updates in fractional seconds, defined by config.timestep
+        '''
+        self.max_speed=1.19*config.timestep # m/s
+        self.max_flow_rate=1.3*self.width*config.timestep #ppl/s/m per unit effective width * effective width
         self.k=1.4
         self.a=0.266
         self.density=0
         self.speed=0
 
-
         if self.type=="Staircase":
             self.tread=tread
             self.riser=riser
             # it would also be easy to just look things up in a table, no?
-            self.max_speed=0.941-0.066667*self.riser+0.0416667*self.tread #values from regression performed on data
+            self.max_speed=0.941-0.066667*self.riser+0.0416667*self.tread *config.timestep #values from regression performed on data
             self.k=0.45-0.2*self.riser+0.07*self.tread #same again
-            self.max_flow_rate=0.271667-0.006667*self.riser+0.071667*self.tread #and here
+            self.max_flow_rate=0.271667-0.006667*self.riser+0.071667*self.tread *config.timestep #and here
+
+        self.set_speed()
+        self.set_traversal_time()
 
     #implement basic functions for speed, density, flow rate
+    def step_time(self):
+        'each timestep, we need to check how many people are coming into the element, how many people are leaving, whether people have got to point of leaving'
+        ' if there is a queue, whether it decreases in length or increases in length'
+        self.calc_current_flow_rate()
+        pop_entering=self.check_people_are_entering()
+        pop_exiting=self.check_people_are_exiting()
+
+        if pop_exiting:
+            self.set_outflow()
+        if pop_entering:
+            self.set_inflow_rate()
+            self.set_density_given_inflow()
+
+        self.update_population_tracker()
+        self.time+=config.timestep
+
+    def check_people_are_exiting(self):
+        'check people are in the element, and they have got to the exit point. if they are, then self.possible_queueing=True, and return true'
+        if self.population_tracker.flow_timer>self.population_tracker.unimpeded_traversal_time:
+            self.population_tracker.possible_queuing=True
+        if self.population_tracker.possible_queuing:
+            return True
+        else:
+            return False
+
+    def check_people_are_entering(self):
+        'check people in the entry point are ready to enter, if they are, then return true'
+        return self.inflow_point.population_tracker.possible_queuing
+
     def get_speed(self):
         return self.speed
 
@@ -93,7 +160,7 @@ class Element():
 
     def set_traversal_time(self):
         if self.density==0:
-            raise Exception
+            return np.inf
         else:
             speed=self.get_speed()
             self.traversal_time=self.length/speed
@@ -110,10 +177,10 @@ class Element():
         self.calc_flow_rate()
         return self.calc_flow
 
-    def set_inflow_point(self, inflow_point:Element):
+    def set_inflow_point(self, inflow_point):
         self.inflow_point=inflow_point
 
-    def set_outflow_point(self, outflow_point:Element):
+    def set_outflow_point(self, outflow_point):
         self.outflow_point=outflow_point
 
     def get_inflow_rate(self):
@@ -125,22 +192,30 @@ class Element():
 
     def set_outflow(self):
         outflow_element=self.outflow_point
-        self.outflow=min(self.calc_flow, outflow_element.max_flow_rate)
-        if self.calc_flow<outflow_element.max_flow_rate:
-            self.possible_queuing=True
-            if self.calc_flow>0:
-                self.start_queue_tracker()
+        if self.population>0 and self.possible_queuing:
+            self.outflow=min(self.calc_flow, outflow_element.max_flow_rate)
 
     def get_outflow(self):
         return self.outflow
 
-    def start_queue_tracker(self):
-        if self.already_tracking:
-            return
-        else:
-            self.already_tracking=true
-            self.queue_length+=self.calc_flow-self.outflow
+    def update_population_tracker(self):
+        ' here we access a class called population tracker, which checks the length of the queue relative to population etc'
+        self.population_tracker.population+=self.inflow
+        self.population_tracker.population-=self.outflow
+        self.population_tracker.increment_flow_timer()
+        if self.population_tracker.population<0:
+            self.population_tracker.population=0
+            print(self.name+ " has emptied at: "+ self.global_timer.global_time+ "s")
+        if self.population_tracker.queue_length > 0:
+            self.population_tracker.queue_length -= self.outflow
+            if self.population_tracker.queue_length < 0:
+                self.possible_queuing = False
+                self.population_tracker.queue_length = 0
 
+        if self.calc_flow > self.outflow_point.max_flow_rate:
+            self.possible_queuing = True
+            if self.calc_flow > 0:
+                self.population_tracker.queue_length += (self.calc_flow-self.outflow)
 
 class Outdoors():
     def __init__(self):
@@ -157,36 +232,26 @@ class Staircase(Element):
 class Door(Element):
     'check'
 
-# class used to keep track of the time in each element. can we create this as a singleton class?
-class Singleton(type):
-    _instances = {}
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
-        return cls._instances[cls]
-class Global_timer(metaclass=Singleton):
 
-    def __init__(self):
-        self.global_time=0
 
-    def step_time(self):
-        self.global_time+=1
-class Global_logger(metaclass=Singleton):
-    def __init__(self):
-        self.log=[]
-
-    def add_entry(self, entry):
-        self.log.append(entry)
-
+def step_time(environment, global_timer):
+    global_timer.step_time()
+    # here we need to randomise the order of the elements in the environment as we cycle through them
+    # otherwise, if there is a blockage, one element will never actually evacuate until the other elements have emptied their queues
+    # this is only an issue if you have multiple entrypoints
+    # and is not an issue if you define where the flows will be coming from (e.g. staircase empties floor by floor)
+    for element in environment:
+        element.step_time()
 
 '''
 so we start by defining the environment, and the density of the group of people.
 then we start them off on the evacuation route.
 '''
 environment=[]
+global_timer=Global_timer()
 
-stairs=Staircase()
-corridor=Corridor()
+stairs=Staircase(name='stairs', length=3.31, width=1.8, element_type='Stairs', population=50, global_timer=global_timer, boundary_layer1='Stairs', boundary_layer2='Stairs', tread=10, riser=7)
+corridor=Corridor(name='corridor', length=10, width=1.8, element_type='Corridor', population=50, global_timer=global_timer, boundary_layer1='Corridor', boundary_layer2='Corridor')
 door=Door()
 outdoors=Outdoors()
 
