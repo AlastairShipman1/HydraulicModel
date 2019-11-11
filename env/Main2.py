@@ -59,8 +59,9 @@ class Element():
         self.inflow_transition=None
         self.outflow_transition=None
 
-        self.global_timer=global_timer
+        #self.global_timer=global_timer
         self.time = 0
+        self.flow_timer = 0
 
         self.outflow=0
         self.inflow=0
@@ -80,7 +81,9 @@ class Element():
         self.k=1.4
         self.a=0.266
         self.density=0
+        self.density_holder=0
         self.speed=0
+        self.unimpeded_traversal_time = self.length / self.max_speed
 
         if self.type=="Staircase":
             self.tread=tread
@@ -92,8 +95,6 @@ class Element():
 
         self.queue_length = 0
         self.population = population
-        self.unimpeded_traversal_time = self.length / self.max_speed
-        self.flow_timer = 0
         self.possible_queuing = False
         self.queuing = False
 
@@ -105,6 +106,7 @@ class Element():
 
     def increment_flow_timer(self):
         self.flow_timer += config.timestep
+
     #implement basic functions for speed, density, flow rate
     def step_time(self):
         'each timestep, we need to check how many people are coming into the element, how many people are leaving, whether people have got to point of leaving'
@@ -118,12 +120,22 @@ class Element():
         pop_entering=self.check_people_are_entering()
 
 
-        if self.position_of_front>0.95 and self.population>0:
+        if self.position_of_front==1 and self.population>0:
             self.set_outflow()
+
+        # this sets the inflow rate, and the density of the resulting flow in this element
         if pop_entering:
             self.set_inflow_rate()
             self.set_density_given_inflow()
 
+        #however, this will only work if there is only one group, and they remain at the same density during the entire
+        # flow.
+        # if you want multiple groups, you'll need to implement a set_density function.
+        # more likely, just implement an agent based model, that keeps individuals in groups, and sets the local density
+        # of each individual and thus their movement speed/ the flow rate of the group. these groups can span multiple elements,
+        # and then will need to be able to track which elements they are in.
+
+        # this is going to be fun.
 
         self.update_population_tracker()
         self.time+=config.timestep
@@ -131,15 +143,22 @@ class Element():
             self.flow_timer += config.timestep
 
     def check_front_of_group(self):
-        #in a proportion of the length of the element.
-        self.position_of_front=min(1, (self.speed*self.flow_timer)/self.length)
+        #as a proportion of the length of the element.
+        absolute_position_of_front=self.position_of_front*self.length
+        absolute_position_of_front +=self.speed*config.timestep
+
+        self.position_of_front=min(1, absolute_position_of_front/self.length)
         if self.position_of_front>0.95:
             self.possible_queuing=True
 
     def check_back_of_group(self):
-        group_length=min((self.width*self.population)/(self.density*self.length), 5)#proportion of length of the element
-        self.position_of_back=max(0, self.position_of_front-group_length)
-
+        if self.population==0:
+            self.position_of_back=0
+        else:
+            #as a proportion of element length
+            group_length=(self.population/(self.density*self.width))/self.length
+            print('group length', group_length)
+            self.position_of_back=max(0, self.position_of_front-group_length)
 
     def check_people_are_exiting(self):
         'check people are in the element, and they have got to the exit point. if they are, then self.possible_queueing=True, and return true'
@@ -167,12 +186,15 @@ class Element():
         return self.density
 
     def set_density_given_inflow(self):
-        a=self.a*self.k*self.width
-        b=-self.k*self.width
-        c=self.inflow
-        x1=(-b -np.sqrt(b**2-4*a*c))/(2*a)
-        x2=(-b +np.sqrt(b**2-4*a*c))/(2*a)
-        self.density=min(x1, x2)
+        if self.inflow==0:
+            return
+        else:
+            a=self.a*self.k*self.width
+            b=-self.k*self.width
+            c=self.inflow
+            x1=(-b -np.sqrt(b**2-4*a*c))/(2*a)
+            x2=(-b +np.sqrt(b**2-4*a*c))/(2*a)
+            self.density=min(x1, x2)
 
     def set_initial_density(self, density):
         self.density=density
@@ -185,15 +207,13 @@ class Element():
             self.traversal_time=self.length/speed
 
     def calc_current_flow_rate(self):
-        if self.population==0:
-            self.calc_flow=0
         speed=self.get_speed()
         density=self.get_density()
         calc_flow=self.k*density*self.width*(1-self.a*density)
         self.calc_flow=min(calc_flow, self.max_flow_rate)
 
     def get_current_flow_rate(self):
-        self.calc_flow_rate()
+        self.calc_current_flow_rate()
         return self.calc_flow
 
     def set_inflow_point(self, inflow_point, inflow_transition=None):
@@ -239,11 +259,10 @@ class Element():
         ' here we access a class called population tracker, which checks the length of the queue relative to population etc'
         self.population+=self.inflow
         self.population-=self.outflow
-        self.increment_flow_timer()
-        if self.population<0 and self.position_of_back>0.95:
+        if self.population<0:# and self.position_of_back>0.95:
             self.population=0
             self.outflow=0
-            self.position_of_back==0
+            self.position_of_back=0
             self.flow_timer=0
 
 
@@ -286,13 +305,12 @@ def step_time(environment, global_timer):
     # otherwise, if there is a blockage, one element will never actually evacuate until the other elements have emptied their queues
     # this is only an issue if you have multiple entrypoints
     # and is not an issue if you define where the flows will be coming from (e.g. staircase empties floor by floor)
-    total_population=0
     for element in environment:
         element.step_time()
-        print(element.name, element.population, element.outflow)
-        print(element.name, element.position_of_front, element.position_of_back)
-        total_population+=element.population
-#    print(total_population)
+        print('time', global_timer.global_time)
+        print(element.name + "\t popul: {0:9.2f} \t outf: {1:9.2f} \t infl: {2:9.2f} \t front: {3:9.2f} \t back : {4:9.2f}".format(element.population, element.outflow, element.inflow, element.position_of_front, element.position_of_back))
+
+
 
 
 '''
@@ -320,13 +338,13 @@ corridor.set_inflow_point(corridor)
 corridor.set_outflow_point(corridor2, door)
 corridor.set_initial_density(1)
 
-corridor2.set_inflow_point(corridor, door2)
+corridor2.set_inflow_point(corridor, door)
 corridor2.set_outflow_point(corridor3, door2)
 
 corridor3.set_inflow_point(corridor2, door2)
 corridor3.set_outflow_point(outdoors, door3)
 
-corridor4.set_inflow_point(corridor3, door4)
+corridor4.set_inflow_point(corridor3, door3)
 corridor4.set_outflow_point(outdoors, door4)
 
 environment.append(corridor)
@@ -334,6 +352,16 @@ environment.append(corridor2)
 environment.append(corridor3)
 environment.append(corridor4)
 
-for i in range(1000):
-    step_time(environment, global_timer)
+def check_people_in_building(environment):
+    population=0
+    for element in environment:
+        population+=element.population
+    if population>0:
+        return True
+    else:
+        return False
 
+people_in_building=True
+while(people_in_building):
+    step_time(environment, global_timer)
+    people_in_building=check_people_in_building(environment)
