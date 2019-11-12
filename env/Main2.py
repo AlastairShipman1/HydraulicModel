@@ -86,12 +86,24 @@ class Element():
         self.unimpeded_traversal_time = self.length / self.max_speed
 
         if self.type=="Staircase":
+            staircase_riser_k={7.5:1, 7:1.08, 6.5:{12:1.16, 13:1.23}}
+            staircase_riser_fsm={7.5:1, 7:1.08, 6.5:{12:1.16, 13:1.23}}
+            staircase_riser_max_speed={7.5:1, 7:1.08, 6.5:{12:1.16, 13:1.23}}
+
             self.tread=tread
             self.riser=riser
-            # it would also be easy to just look things up in a table, no?
-            self.max_speed=0.941-0.066667*self.riser+0.0416667*self.tread *config.timestep #values from regression performed on data
-            self.k=0.45-0.2*self.riser+0.07*self.tread #same again
-            self.max_flow_rate=0.271667-0.006667*self.riser+0.071667*self.tread *config.timestep #and here
+            if self.riser==6.5:
+                self.max_speed=staircase_riser_max_speed[self.riser][self.tread]
+                self.k=staircase_riser_k[self.riser][self.tread]
+                self.max_flow_rate=staircase_riser_fsm[self.riser][self.tread]
+            else:
+                self.max_speed=staircase_riser_max_speed[self.riser]
+                self.k=staircase_riser_k[self.riser]
+                self.max_flow_rate=staircase_riser_fsm[self.riser]
+            # it would also be easy to just look things up in a table, no?... the regression values work on arbitrary stairs...
+            #self.max_speed=(0.941-0.066667*self.riser+0.0416667*self.tread) *config.timestep #values from regression performed on data
+            #self.k=0.45-0.2*self.riser+0.07*self.tread #same again
+            #self.max_flow_rate=(0.271667-0.006667*self.riser+0.071667*self.tread) *config.timestep #and here
 
         self.queue_length = 0
         self.population = population
@@ -308,6 +320,11 @@ def step_time(environment, global_timer):
     for element in environment:
         element.step_time()
         print('time', global_timer.global_time)
+        print('element name', element.name)
+        print('element_speed', element.speed)
+        print('element_k', element.k)
+        print('element_a', element.a)
+        print('element_density', element.density)
         print(element.name + "\t popul: {0:9.2f} \t outf: {1:9.2f} \t infl: {2:9.2f} \t front: {3:9.2f} \t back : {4:9.2f}".format(element.population, element.outflow, element.inflow, element.position_of_front, element.position_of_back))
 
 
@@ -320,24 +337,28 @@ then we start them off on the evacuation route.
 environment=[]
 global_timer=Global_timer()
 
-#stairs=Staircase(name='stairs', length=3.31, width=1.8, element_type='Stairs', population=50, global_timer=global_timer, boundary_layer1='Stairs', boundary_layer2='Stairs', tread=10, riser=7)
-corridor=Corridor(name='corridor', length=10, width=1.8, element_type='Corridor', population=50, global_timer=global_timer, boundary_layer1='Corridor', boundary_layer2='Corridor')
-corridor2=Corridor(name='corridor2', length=10, width=1.8, element_type='Corridor', population=0, global_timer=global_timer, boundary_layer1='Corridor', boundary_layer2='Corridor')
-corridor3=Corridor(name='corridor3', length=10, width=1.8, element_type='Corridor', population=0, global_timer=global_timer, boundary_layer1='Corridor', boundary_layer2='Corridor')
-corridor4=Corridor(name='corridor4', length=10, width=1.8, element_type='Corridor', population=0, global_timer=global_timer, boundary_layer1='Corridor', boundary_layer2='Corridor')
+stairs=Staircase(name='stairs', length=3.31, width=1.8, element_type='Staircase', population=50, global_timer=global_timer, boundary_layer1='Stairs', boundary_layer2='Stairs', tread=11, riser=7)
+corridor=Corridor(name='corridor', length=10, width=1.8, element_type='Corridor', population=0, global_timer=global_timer, boundary_layer1='Corridor', boundary_layer2='Corridor')
+#corridor2=Corridor(name='corridor2', length=10, width=1.8, element_type='Corridor', population=0, global_timer=global_timer, boundary_layer1='Corridor', boundary_layer2='Corridor')
+#corridor3=Corridor(name='corridor3', length=10, width=1.8, element_type='Corridor', population=0, global_timer=global_timer, boundary_layer1='Corridor', boundary_layer2='Corridor')
+#corridor4=Corridor(name='corridor4', length=10, width=1.8, element_type='Corridor', population=0, global_timer=global_timer, boundary_layer1='Corridor', boundary_layer2='Corridor')
 
 
-door=Door(np.inf)
+door=Door(1.3*config.timestep)
 door2=Door(np.inf)
-door3=Door(np.inf)
-door4=Door(np.inf)
+#door3=Door(np.inf)
+#door4=Door(np.inf)
 outdoors=Outdoors()
 
 
-corridor.set_inflow_point(corridor)
-corridor.set_outflow_point(corridor2, door)
-corridor.set_initial_density(1)
+stairs.set_inflow_point(stairs)
+stairs.set_outflow_point(corridor, door2)
+stairs.set_initial_density(1.5)
+corridor.set_inflow_point(stairs, door2)
+corridor.set_outflow_point(outdoors, door)
 
+
+'''
 corridor2.set_inflow_point(corridor, door)
 corridor2.set_outflow_point(corridor3, door2)
 
@@ -346,11 +367,11 @@ corridor3.set_outflow_point(outdoors, door3)
 
 corridor4.set_inflow_point(corridor3, door3)
 corridor4.set_outflow_point(outdoors, door4)
-
+'''
+environment.append(stairs)
 environment.append(corridor)
-environment.append(corridor2)
-environment.append(corridor3)
-environment.append(corridor4)
+#environment.append(corridor3)
+#environment.append(corridor4)
 
 def check_people_in_building(environment):
     population=0
@@ -365,3 +386,4 @@ people_in_building=True
 while(people_in_building):
     step_time(environment, global_timer)
     people_in_building=check_people_in_building(environment)
+
