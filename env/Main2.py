@@ -59,7 +59,6 @@ class Element():
         self.inflow_transition=None
         self.outflow_transition=None
 
-        #self.global_timer=global_timer
         self.time = 0
         self.flow_timer = 0
 
@@ -76,14 +75,14 @@ class Element():
         '''
         This updates in fractional seconds, defined by config.timestep
         '''
-        self.max_speed=1.19*config.timestep # m/s
+        self.max_speed=1.19*config.timestep # m/timestep
         self.max_flow_rate=1.3*self.width*config.timestep #ppl/s/m per unit effective width * effective width
         self.k=1.4
         self.a=0.266
         self.density=0
         self.density_holder=0
         self.speed=0
-        self.unimpeded_traversal_time = self.length / self.max_speed
+        self.unimpeded_traversal_time = self.length / self.max_speed # in config.timesteps
 
         if self.type=="Staircase":
             staircase_riser_k={7.5:1, 7:1.08, 6.5:{12:1.16, 13:1.23}}
@@ -95,12 +94,17 @@ class Element():
             if self.riser==6.5:
                 self.max_speed=staircase_riser_max_speed[self.riser][self.tread]
                 self.k=staircase_riser_k[self.riser][self.tread]
-                self.max_flow_rate=staircase_riser_fsm[self.riser][self.tread]
+                self.max_flow_rate=staircase_riser_fsm[self.riser][self.tread]*self.width
             else:
                 self.max_speed=staircase_riser_max_speed[self.riser]
                 self.k=staircase_riser_k[self.riser]
-                self.max_flow_rate=staircase_riser_fsm[self.riser]
-            # it would also be easy to just look things up in a table, no?... the regression values work on arbitrary stairs...
+                self.max_flow_rate=staircase_riser_fsm[self.riser]*self.width
+
+            self.max_speed*=config.timestep #m/config.timestep
+            self.max_flow_rate*=config.timestep #ppl/config.timestep
+
+            # can do this either by regression or by looking up in a dict (as we currently do)... the regression values work on arbitrary stairs...
+            # need to check these regression values.
             #self.max_speed=(0.941-0.066667*self.riser+0.0416667*self.tread) *config.timestep #values from regression performed on data
             #self.k=0.45-0.2*self.riser+0.07*self.tread #same again
             #self.max_flow_rate=(0.271667-0.006667*self.riser+0.071667*self.tread) *config.timestep #and here
@@ -109,6 +113,7 @@ class Element():
         self.population = population
         self.possible_queuing = False
         self.queuing = False
+        self.queue_population=0
 
         # need to implement a queue for the population, to make sure that it is first in first out.
         # self.people = deque
@@ -118,7 +123,6 @@ class Element():
 
     def increment_flow_timer(self):
         self.flow_timer += config.timestep
-
     #implement basic functions for speed, density, flow rate
     def step_time(self):
         'each timestep, we need to check how many people are coming into the element, how many people are leaving, whether people have got to point of leaving'
@@ -157,7 +161,7 @@ class Element():
     def check_front_of_group(self):
         #as a proportion of the length of the element.
         absolute_position_of_front=self.position_of_front*self.length
-        absolute_position_of_front +=self.speed*config.timestep
+        absolute_position_of_front +=self.speed
 
         self.position_of_front=min(1, absolute_position_of_front/self.length)
         if self.position_of_front>0.95:
@@ -169,7 +173,6 @@ class Element():
         else:
             #as a proportion of element length
             group_length=(self.population/(self.density*self.width))/self.length
-            print('group length', group_length)
             self.position_of_back=max(0, self.position_of_front-group_length)
 
     def check_people_are_exiting(self):
@@ -192,7 +195,7 @@ class Element():
         return self.speed
 
     def set_speed(self):
-        self.speed=self.k-self.a*self.k*self.density
+        self.speed=(self.k-self.a*self.k*self.density)*config.timestep #movement speed per unit timestep
 
     def get_density(self):
         return self.density
@@ -201,15 +204,17 @@ class Element():
         if self.inflow==0:
             return
         else:
-            a=self.a*self.k*self.width
-            b=-self.k*self.width
-            c=self.inflow
+            a=1
+            b=-1/self.a
+            c=self.inflow/(self.a*self.k*self.width*config.timestep)# needs to be independent of timestep
             x1=(-b -np.sqrt(b**2-4*a*c))/(2*a)
             x2=(-b +np.sqrt(b**2-4*a*c))/(2*a)
             self.density=min(x1, x2)
+            self.set_speed()
 
     def set_initial_density(self, density):
         self.density=density
+        self.set_speed()
 
     def set_traversal_time(self):
         if self.density==0:
@@ -218,14 +223,21 @@ class Element():
             speed=self.get_speed()
             self.traversal_time=self.length/speed
 
+    def set_flow_rate(self):
+        if self.inflow>0:
+            self.calc_flow=self.inflow
+
     def calc_current_flow_rate(self):
-        speed=self.get_speed()
-        density=self.get_density()
-        calc_flow=self.k*density*self.width*(1-self.a*density)
-        self.calc_flow=min(calc_flow, self.max_flow_rate)
+        if self.inflow>0:
+            self.calc_flow=self.inflow
+        else:
+            speed=self.get_speed()
+            density=self.get_density()
+            calc_flow=self.k*density*self.width*(1-self.a*density)*config.timestep
+            self.calc_flow=min(calc_flow, self.max_flow_rate)
 
     def get_current_flow_rate(self):
-        self.calc_current_flow_rate()
+        #self.calc_current_flow_rate()
         return self.calc_flow
 
     def set_inflow_point(self, inflow_point, inflow_transition=None):
@@ -321,57 +333,17 @@ def step_time(environment, global_timer):
         element.step_time()
         print('time', global_timer.global_time)
         print('element name', element.name)
-        print('element_speed', element.speed)
-        print('element_k', element.k)
-        print('element_a', element.a)
-        print('element_density', element.density)
-        print(element.name + "\t popul: {0:9.2f} \t outf: {1:9.2f} \t infl: {2:9.2f} \t front: {3:9.2f} \t back : {4:9.2f}".format(element.population, element.outflow, element.inflow, element.position_of_front, element.position_of_back))
+        #print('element_speed: m/config.timestep', element.speed)
+        print('element_population', element.population)
+        #print('element_k', element.k)
+        #print('element_a', element.a)
+        #print('element_calc_flow: ppl/config.timestep', element.calc_flow)
+        #print('element_inflow', element.inflow)
+        #print('element_outflow', element.outflow)
+        #print('element_density', element.density)
+        #print(element.name + "\t popul: {0:9.2f} \t outf: {1:9.2f} \t infl: {2:9.2f} \t front: {3:9.2f} \t back : {4:9.2f}".format(element.population, element.outflow, element.inflow, element.position_of_front, element.position_of_back))
 
-
-
-
-'''
-so we start by defining the environment, and the density of the group of people.
-then we start them off on the evacuation route.
-'''
-environment=[]
-global_timer=Global_timer()
-
-stairs=Staircase(name='stairs', length=3.31, width=1.8, element_type='Staircase', population=50, global_timer=global_timer, boundary_layer1='Stairs', boundary_layer2='Stairs', tread=11, riser=7)
-corridor=Corridor(name='corridor', length=10, width=1.8, element_type='Corridor', population=0, global_timer=global_timer, boundary_layer1='Corridor', boundary_layer2='Corridor')
-#corridor2=Corridor(name='corridor2', length=10, width=1.8, element_type='Corridor', population=0, global_timer=global_timer, boundary_layer1='Corridor', boundary_layer2='Corridor')
-#corridor3=Corridor(name='corridor3', length=10, width=1.8, element_type='Corridor', population=0, global_timer=global_timer, boundary_layer1='Corridor', boundary_layer2='Corridor')
-#corridor4=Corridor(name='corridor4', length=10, width=1.8, element_type='Corridor', population=0, global_timer=global_timer, boundary_layer1='Corridor', boundary_layer2='Corridor')
-
-
-door=Door(1.3*config.timestep)
-door2=Door(np.inf)
-#door3=Door(np.inf)
-#door4=Door(np.inf)
-outdoors=Outdoors()
-
-
-stairs.set_inflow_point(stairs)
-stairs.set_outflow_point(corridor, door2)
-stairs.set_initial_density(1.5)
-corridor.set_inflow_point(stairs, door2)
-corridor.set_outflow_point(outdoors, door)
-
-
-'''
-corridor2.set_inflow_point(corridor, door)
-corridor2.set_outflow_point(corridor3, door2)
-
-corridor3.set_inflow_point(corridor2, door2)
-corridor3.set_outflow_point(outdoors, door3)
-
-corridor4.set_inflow_point(corridor3, door3)
-corridor4.set_outflow_point(outdoors, door4)
-'''
-environment.append(stairs)
-environment.append(corridor)
-#environment.append(corridor3)
-#environment.append(corridor4)
+        print('############################################################################################################')
 
 def check_people_in_building(environment):
     population=0
@@ -382,8 +354,38 @@ def check_people_in_building(environment):
     else:
         return False
 
+
+'''
+so we start by defining the environment, and the density of the group of people.
+then we start them off on the evacuation route.
+'''
+
+global_timer=Global_timer()
+
+
+test_environment1=[]
+
+stairs=Staircase(name='stairs', length=3.31, width=1.8, element_type='Staircase', population=50, global_timer=global_timer, boundary_layer1='Stairs', boundary_layer2='Stairs', tread=11, riser=7)
+corridor=Corridor(name='corridor', length=10, width=1.8, element_type='Corridor', population=0, global_timer=global_timer, boundary_layer1='Corridor', boundary_layer2='Corridor')
+door=Door(1.3*config.timestep)
+door2=Door(np.inf)
+outdoors=Outdoors()
+
+stairs.set_inflow_point(stairs)
+stairs.set_outflow_point(corridor, door2)
+stairs.set_initial_density(1.5)
+corridor.set_inflow_point(stairs, door2)
+corridor.set_outflow_point(outdoors, door)
+
+test_environment1.append(stairs)
+test_environment1.append(corridor)
+
+
+
+
 people_in_building=True
 while(people_in_building):
-    step_time(environment, global_timer)
-    people_in_building=check_people_in_building(environment)
+    step_time(test_environment1, global_timer)
+    people_in_building=check_people_in_building(test_environment1)
+
 
