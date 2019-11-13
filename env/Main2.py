@@ -46,6 +46,55 @@ class Global_logger(metaclass=Singleton):
     def add_entry(self, entry):
         self.log.append(entry)
 
+class Person():
+    'each person should belong to a group, should be in an element, should have a speed'
+    'you should be able to change most of these'
+
+    def __init__(self, speed, group, element):
+        assert type(group) is Group, "need to ensure the group is a group"
+        assert type(element) is element, "need to ensure the element is an element"
+        self.speed=speed
+        self.group=group
+        self.element=element
+
+    def set_group(self, group):
+        self.group=group
+
+    def get_group(self):
+        return self.group
+
+    def set_speed(self, speed):
+        self.speed=speed
+
+    def get_speed(self):
+        return self.speed
+
+    def set_element(self, element):
+        assert type(element) is Element, "element is not of type(Element"
+        self.element=element
+
+    def get_element(self):
+        return self.element
+
+class Group():
+
+    'what we want to do here is track individual groups as they move through the environment.'
+    'this means checking their position, when they start in one element, leave another, the average speed'
+    'a reference to each person, a way to add agents, a way to remove agents, etc'
+
+    def __init__(self,name, agents:list):
+        assert type(agents) is list, 'need to input a list of agents'
+        self.agents=agents
+        self.population=len(self.agents)
+        self.name=name
+
+    def add_agent(self, agent:Person):
+        assert type(agent) is Person, 'agent is not a person'
+        self.agents.append(agent)
+
+    def get_agents(self):
+        return self.agents
+
 class Element():
 
     def __init__(self, name, length, width, element_type, population, global_timer:Global_timer, boundary_layer1=None, boundary_layer2=None, tread=None, riser=None):
@@ -355,7 +404,19 @@ def check_people_in_building(environment):
         return False
 
 
+
+
+
+
+
+
+
+
+
 '''
+###########################################################################################################
+HERE WE ACTUALLY START OFF THE MODEL. PUT THIS INTO A DIFFERENT FILE
+###########################################################################################################
 so we start by defining the environment, and the density of the group of people.
 then we start them off on the evacuation route.
 '''
