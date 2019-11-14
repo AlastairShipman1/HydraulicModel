@@ -280,7 +280,6 @@ class Element():
             self.possible_queuing = True
             if self.calc_flow > 0:
                 self.queue_length += (self.calc_flow-self.outflow)
-
 class Transition():
     def __init__(self, max_flow_rate):
         self.max_flow_rate=max_flow_rate
@@ -297,8 +296,18 @@ class Corridor(Element):
     'also aisle, ramp, doorway'
 class Staircase(Element):
     'check'
+class Room(Element):
+    'check'
 class Door(Transition):
     'check'
+
+class Floor():
+    'made up of elements. is this sensible?'
+    'each floor makes it into a building.'
+
+class Building():
+    'made up of floors. is this sensible?'
+    'has a total population. run "step_time" through this building '
 
 class Person():
     'each person should belong to a group, should be in an element, should have a speed'
@@ -329,19 +338,23 @@ class Person():
 
     def get_element(self):
         return self.element
-
 class Group():
 
     'what we want to do here is track individual groups as they move through the environment.'
     'this means checking their position, when they start in one element, leave another, the average speed'
     'a reference to each person, a way to add agents, a way to remove agents, etc'
+    'update this object everytime outflow is called in "Element" objects '
+    'CURRENTLY THIS METHOD ONLY WORKS WHEN A GROUP IS IN TWO ELEMENTS.'
+    'NEED TO BE ABLE TO INCREASE THIS TO ARBITRARY GROUPS'
 
     def __init__(self,name, agents:list, current_element:Element):
         assert type(agents) is list, 'need to input a list of agents'
         self.agents=agents
+        #### need to implement a queue here.
         self.population=len(self.agents)
         self.name=name
         self.current_element=current_element
+        self.flow_through_elements=0
 
     def add_agent(self, agent:Person):
         'Here we can add a person to the group'
@@ -352,12 +365,16 @@ class Group():
         return self.agents
 
     def set_current_element(self, element:Element):
+        assert type(element) is Element, 'need to input an element'
+        # need to be able to override this from the element, once population has dropped to zero?
+
         self.current_element=element
 
     def set_next_element(self, element:Element):
+        assert type(element) is Element, 'need to input an element'
         self.next_element=element
 
-    def flow_discrete_individuals(self):
+    def flow_discrete_individuals(self, flow_rate):
         'Here we want to take the cumulative flow rate from the element, and once it gets above 1, flow an individual from the group '
         'from current element to next element'
         'once the population in current element==0, redefine current and next elements'
@@ -366,6 +383,33 @@ class Group():
         'you also want a queue of people, so that first in==first out'
         ''
 
+        self.flow_through_elements+=flow_rate
+        if self.flow_through_elements>1:
+            'pop the next person from the deque, change element to next element'
+            self.flow_through_elements-=1
+
+        current_pop = self.get_population_in_current_element()
+        next_pop = self.get_population_in_next_element()
+
+        if current_pop == 0:
+            self.set_current_element(self.next_element)
+            # need to set next element somehow?
+
+    def get_population_in_current_element(self):
+        population=0
+        for agent in self.agents:
+            if agent.current_element==self.current_element:
+                population+=1
+        return population
+
+    def get_population_in_next_element(self):
+        population=0
+        for agent in self.agents:
+            if agent.current_element==self.next_element:
+                population+=1
+        return population
+
+#Basic functions for running the model.
 def step_time(environment, global_timer):
     global_timer.step_time()
     # here we need to randomise the order of the elements in the environment as we cycle through them
@@ -374,10 +418,10 @@ def step_time(environment, global_timer):
     # and is not an issue if you define where the flows will be coming from (e.g. staircase empties floor by floor)
     for element in environment:
         element.step_time()
-        print('time', global_timer.global_time)
-        print('element name', element.name)
+        #print('time', global_timer.global_time)
+        #print('element name', element.name)
         #print('element_speed: m/config.timestep', element.speed)
-        print('element_population', element.population)
+        #print('element_population', element.population)
         #print('element_k', element.k)
         #print('element_a', element.a)
         #print('element_calc_flow: ppl/config.timestep', element.calc_flow)
@@ -386,8 +430,7 @@ def step_time(environment, global_timer):
         #print('element_density', element.density)
         #print(element.name + "\t popul: {0:9.2f} \t outf: {1:9.2f} \t infl: {2:9.2f} \t front: {3:9.2f} \t back : {4:9.2f}".format(element.population, element.outflow, element.inflow, element.position_of_front, element.position_of_back))
 
-        print('############################################################################################################')
-
+        #print('############################################################################################################')
 def check_people_in_building(environment):
     population=0
     for element in environment:

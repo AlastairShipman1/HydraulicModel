@@ -39,3 +39,4 @@ people_in_building=True
 while(people_in_building):
     Models.step_time(test_environment1, global_timer)
     people_in_building=Models.check_people_in_building(test_environment1)
+print(global_timer.global_time)
