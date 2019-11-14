@@ -1,9 +1,3 @@
-import Models
-import config
-import numpy as np
-
-
-
 '''
 ###########################################################################################################
 Test1 is a single floor, made up of a staircase, flowing into a corridor and then a door.
@@ -16,6 +10,11 @@ The population is 50, at an initial density of 1.5, all located at the top of th
 need to figure out how to actually run tests.
 ###########################################################################################################
 '''
+
+import Models
+import config
+import numpy as np
+
 
 global_timer=Models.Global_timer()
 test_environment1=[]

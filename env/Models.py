@@ -2,29 +2,6 @@ import numpy as np
 from collections import deque
 import config
 
-'''
-Please note we will be using metric units wherever possible, and where not possible it will be noted clearly
-
-This model will output a traversal time for an arbitrary collection of elements
-These elements will all be connected, eventually, to the outside. All exit routes are specified in advance.
-The assumption is that all people immediately walk down their specified route, at predetermined velocity/density relationships
-Queuing is accommodated.
-
-need to make sure we can understand dominance of staircases over doors?
-
-The hydraulic model (is this first order or second order?)
-
-1) Set up a group of people, defined by number, density and location (an element).
-2) They then start moving towards the first transition (e.g. a door to another room), which leads to the next element
-3) Their movement speed is determined by the location and density, the time to transition is determined by the speed.
-4) Once at the transition, we need to understand the density on both sides of the transition, which is found by solving a quadratic
-4.1) You know the flow rate into the transition, and using F=kD(1-aD)We, we can solve for D
-5) Once you have D on the otherside of the transition, you can find S=k-akD, and therefore the time to traverse the next element.
-6) If the flow rate is limited (by a door, or the Fmax of the element), then the max flow rate is limited. 
-6.1) If the flow rate through a transition is lower than through the element, then queuing occurs. The length of this queue needs to be tracked
-7) Each person in the group of people needs to be an object with a counter for how long they have been moving in the element they are in
-7.1) Need to adapt this for queuing
-'''
 # class used to keep track of the time in each element. can we create this as a singleton class? don't worry about loggers just yet
 class Singleton(type):
     _instances = {}
@@ -45,74 +22,7 @@ class Global_logger(metaclass=Singleton):
 
     def add_entry(self, entry):
         self.log.append(entry)
-'''
-class Person():
-    'each person should belong to a group, should be in an element, should have a speed'
-    'you should be able to change most of these'
 
-    def __init__(self, speed, group, element):
-        assert type(group) is Group, "need to ensure the group is a group"
-        assert type(element) is element, "need to ensure the element is an element"
-        self.speed=speed
-        self.group=group
-        self.element=element
-
-    def set_group(self, group):
-        self.group=group
-
-    def get_group(self):
-        return self.group
-
-    def set_speed(self, speed):
-        self.speed=speed
-
-    def get_speed(self):
-        return self.speed
-
-    def set_element(self, element):
-        assert type(element) is Element, "element is not of type(Element"
-        self.element=element
-
-    def get_element(self):
-        return self.element
-
-class Group():
-
-    'what we want to do here is track individual groups as they move through the environment.'
-    'this means checking their position, when they start in one element, leave another, the average speed'
-    'a reference to each person, a way to add agents, a way to remove agents, etc'
-
-    def __init__(self,name, agents:list, current_element:Element):
-        assert type(agents) is list, 'need to input a list of agents'
-        self.agents=agents
-        self.population=len(self.agents)
-        self.name=name
-        self.current_element=current_element
-
-    def add_agent(self, agent:Person):
-        'Here we can add a person to the group'
-        assert type(agent) is Person, 'agent is not a person'
-        self.agents.append(agent)
-
-    def get_agents(self):
-        return self.agents
-
-    def set_current_element(self, element:Element):
-        self.current_element=element
-
-    def set_next_element(self, element:Element):
-        self.next_element=element
-
-    def flow_discrete_individuals(self):
-        'Here we want to take the cumulative flow rate from the element, and once it gets above 1, flow an individual from the group '
-        'from current element to next element'
-        'once the population in current element==0, redefine current and next elements'
-        'keep the model below as continuous, as it will remain accurate'
-        'however, you will want this bit to be a discrete add-on'
-        'you also want a queue of people, so that first in==first out'
-        ''
-
-'''
 class Element():
 
     def __init__(self, name, length, width, element_type, population, global_timer:Global_timer, boundary_layer1=None, boundary_layer2=None, tread=None, riser=None):
@@ -389,6 +299,72 @@ class Staircase(Element):
     'check'
 class Door(Transition):
     'check'
+
+class Person():
+    'each person should belong to a group, should be in an element, should have a speed'
+    'you should be able to change most of these'
+
+    def __init__(self, speed, group, element):
+        assert type(group) is Group, "need to ensure the group is a group"
+        assert type(element) is element, "need to ensure the element is an element"
+        self.speed=speed
+        self.group=group
+        self.element=element
+
+    def set_group(self, group):
+        self.group=group
+
+    def get_group(self):
+        return self.group
+
+    def set_speed(self, speed):
+        self.speed=speed
+
+    def get_speed(self):
+        return self.speed
+
+    def set_element(self, element):
+        assert type(element) is Element, "element is not of type(Element"
+        self.element=element
+
+    def get_element(self):
+        return self.element
+
+class Group():
+
+    'what we want to do here is track individual groups as they move through the environment.'
+    'this means checking their position, when they start in one element, leave another, the average speed'
+    'a reference to each person, a way to add agents, a way to remove agents, etc'
+
+    def __init__(self,name, agents:list, current_element:Element):
+        assert type(agents) is list, 'need to input a list of agents'
+        self.agents=agents
+        self.population=len(self.agents)
+        self.name=name
+        self.current_element=current_element
+
+    def add_agent(self, agent:Person):
+        'Here we can add a person to the group'
+        assert type(agent) is Person, 'agent is not a person'
+        self.agents.append(agent)
+
+    def get_agents(self):
+        return self.agents
+
+    def set_current_element(self, element:Element):
+        self.current_element=element
+
+    def set_next_element(self, element:Element):
+        self.next_element=element
+
+    def flow_discrete_individuals(self):
+        'Here we want to take the cumulative flow rate from the element, and once it gets above 1, flow an individual from the group '
+        'from current element to next element'
+        'once the population in current element==0, redefine current and next elements'
+        'keep the model below as continuous, as it will remain accurate'
+        'however, you will want this bit to be a discrete add-on'
+        'you also want a queue of people, so that first in==first out'
+        ''
 
 def step_time(environment, global_timer):
     global_timer.step_time()
