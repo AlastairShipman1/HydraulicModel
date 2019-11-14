@@ -45,7 +45,7 @@ class Global_logger(metaclass=Singleton):
 
     def add_entry(self, entry):
         self.log.append(entry)
-
+'''
 class Person():
     'each person should belong to a group, should be in an element, should have a speed'
     'you should be able to change most of these'
@@ -82,19 +82,37 @@ class Group():
     'this means checking their position, when they start in one element, leave another, the average speed'
     'a reference to each person, a way to add agents, a way to remove agents, etc'
 
-    def __init__(self,name, agents:list):
+    def __init__(self,name, agents:list, current_element:Element):
         assert type(agents) is list, 'need to input a list of agents'
         self.agents=agents
         self.population=len(self.agents)
         self.name=name
+        self.current_element=current_element
 
     def add_agent(self, agent:Person):
+        'Here we can add a person to the group'
         assert type(agent) is Person, 'agent is not a person'
         self.agents.append(agent)
 
     def get_agents(self):
         return self.agents
 
+    def set_current_element(self, element:Element):
+        self.current_element=element
+
+    def set_next_element(self, element:Element):
+        self.next_element=element
+
+    def flow_discrete_individuals(self):
+        'Here we want to take the cumulative flow rate from the element, and once it gets above 1, flow an individual from the group '
+        'from current element to next element'
+        'once the population in current element==0, redefine current and next elements'
+        'keep the model below as continuous, as it will remain accurate'
+        'however, you will want this bit to be a discrete add-on'
+        'you also want a queue of people, so that first in==first out'
+        ''
+
+'''
 class Element():
 
     def __init__(self, name, length, width, element_type, population, global_timer:Global_timer, boundary_layer1=None, boundary_layer2=None, tread=None, riser=None):
@@ -402,51 +420,5 @@ def check_people_in_building(environment):
         return True
     else:
         return False
-
-
-
-
-
-
-
-
-
-
-
-'''
-###########################################################################################################
-HERE WE ACTUALLY START OFF THE MODEL. PUT THIS INTO A DIFFERENT FILE
-###########################################################################################################
-so we start by defining the environment, and the density of the group of people.
-then we start them off on the evacuation route.
-'''
-
-global_timer=Global_timer()
-
-
-test_environment1=[]
-
-stairs=Staircase(name='stairs', length=3.31, width=1.8, element_type='Staircase', population=50, global_timer=global_timer, boundary_layer1='Stairs', boundary_layer2='Stairs', tread=11, riser=7)
-corridor=Corridor(name='corridor', length=10, width=1.8, element_type='Corridor', population=0, global_timer=global_timer, boundary_layer1='Corridor', boundary_layer2='Corridor')
-door=Door(1.3*config.timestep)
-door2=Door(np.inf)
-outdoors=Outdoors()
-
-stairs.set_inflow_point(stairs)
-stairs.set_outflow_point(corridor, door2)
-stairs.set_initial_density(1.5)
-corridor.set_inflow_point(stairs, door2)
-corridor.set_outflow_point(outdoors, door)
-
-test_environment1.append(stairs)
-test_environment1.append(corridor)
-
-
-
-
-people_in_building=True
-while(people_in_building):
-    step_time(test_environment1, global_timer)
-    people_in_building=check_people_in_building(test_environment1)
 
 
