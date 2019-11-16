@@ -1,5 +1,5 @@
 import numpy as np
-from collections import deque
+import collections
 import config
 
 # class used to keep track of the time in each element. can we create this as a singleton class? don't worry about loggers just yet
@@ -35,19 +35,12 @@ class Element():
         self.type=element_type
         self.inflow_transition=None
         self.outflow_transition=None
+        self.inflow_point=None
+        self.inflow_points=None
 
         self.time = 0
         self.flow_timer = 0
 
-        self.outflow=0
-        self.inflow=0
-        self.calc_flow=0
-        # here we have to define the max inflow and outflow of each element.
-        self.max_inflow=np.inf
-        self.max_outflow=np.inf
-
-        self.position_of_front=0
-        self.position_of_back=0
 
         '''
         This updates in fractional seconds, defined by config.timestep
@@ -86,6 +79,17 @@ class Element():
             #self.k=0.45-0.2*self.riser+0.07*self.tread #same again
             #self.max_flow_rate=(0.271667-0.006667*self.riser+0.071667*self.tread) *config.timestep #and here
 
+
+        self.outflow=0
+        self.inflow=0
+        self.calc_flow=0
+        # here we have to define the max inflow and outflow of each element.
+        self.max_inflow=self.max_flow_rate
+        self.max_outflow=self.max_flow_rate
+
+        self.position_of_front=0
+        self.position_of_back=0
+
         self.queue_length = 0
         self.population = population
         self.possible_queuing = False
@@ -105,18 +109,23 @@ class Element():
         'each timestep, we need to check how many people are coming into the element, how many people are leaving, whether people have got to point of leaving'
         ' if there is a queue, whether it decreases in length or increases in length'
 
+        #you need to check on the order of these things:
+            # check inflow, check outflow, calc_flow_rate
+            # check queue length, update population
+            #
+
+
         if self.population>0:
-            self.calc_current_flow_rate()
             self.check_front_of_group()
             self.check_back_of_group()
 
-        pop_entering=self.check_people_are_entering()
-
+        self.calc_current_flow_rate()
 
         if self.position_of_front==1 and self.population>0:
             self.set_outflow()
 
         # this sets the inflow rate, and the density of the resulting flow in this element
+        pop_entering=self.check_people_are_entering()
         if pop_entering:
             self.set_inflow_rate()
             self.set_density_given_inflow()
@@ -163,10 +172,14 @@ class Element():
 
     def check_people_are_entering(self):
         'check people in the entry point are ready to enter, if they are, then return true'
-        if self.inflow_point==self:
-            return False
+        if self.inflow_points:
+            for element in self.inflow_points:
+                return element.possible_queuing
         else:
-            return self.inflow_point.possible_queuing
+            if self.inflow_point==self:
+                return False
+            else:
+                return self.inflow_point.possible_queuing
 
     def get_speed(self):
         return self.speed
@@ -200,31 +213,36 @@ class Element():
             speed=self.get_speed()
             self.traversal_time=self.length/speed
 
-    def set_flow_rate(self):
-        if self.inflow>0:
-            self.calc_flow=self.inflow
-
     def calc_current_flow_rate(self):
+
         if self.inflow>0:
             self.calc_flow=self.inflow
         else:
-            speed=self.get_speed()
-            density=self.get_density()
-            calc_flow=self.k*density*self.width*(1-self.a*density)*config.timestep
-            self.calc_flow=min(calc_flow, self.max_flow_rate)
+            if self.population>0:
+                speed=self.get_speed()
+                density=self.get_density()
+                calc_flow=self.k*density*self.width*(1-self.a*density)*config.timestep
+                self.calc_flow=min(calc_flow, self.max_flow_rate)
+            else:
+                self.calc_flow=0
 
     def get_current_flow_rate(self):
         #self.calc_current_flow_rate()
         return self.calc_flow
 
     def set_inflow_point(self, inflow_point, inflow_transition=None):
+        #right: how do we make this work for multiple inflow points?
         if inflow_point==self:
             self.inflow=0
-        self.inflow_point=inflow_point
+        if type(inflow_point) is list:
+            self.inflow_points=inflow_point
+        else:
+            self.inflow_point=inflow_point
         if inflow_transition is not None:
             self.inflow_transition=inflow_transition
 
     def set_outflow_point(self, outflow_point, outflow_transition=None):
+        #must only be single outflow point? otherwise need to keep track of inflows and outflows and agents.
         self.outflow_point=outflow_point
         if outflow_transition is not None:
             self.outflow_transition=outflow_transition
@@ -233,18 +251,50 @@ class Element():
         return self.inflow
 
     def set_inflow_rate(self):
-        inflow_element=self.inflow_point
-        if inflow_element.population==0:
-            self.inflow=0
-            return
-        if self.inflow_transition:
-            self.inflow=min(self.max_flow_rate, self.inflow_transition.max_flow_rate, inflow_element.outflow)
-        elif self.inflow_point.name==self.name:
-            # it turns out this is inaccessible if we code properly, as this function will never be called for a
-            # population source.
-            self.inflow=0
+        #create a list of currently outflowing points, and then split up their flow by their relative widths?: this is
+        # only if they access the same point.
+        # if they are in a corridor and enter different points, you will have to split the corridor into sub corridors.
+        #then you need to limit their inflow by the same method as before (in proportion to each other)
+        # then you need to back update them to make sure that they don't still think their flow rate is whatever it is.....
+
+        if self.inflow_points is not None:
+            currently_inflowing_points=[]
+            total_max_flow_rates=0
+            total_inflow=0
+            for element in self.inflow_points:
+                if element.outflow>0:
+                    currently_inflowing_points.append(element)
+                    total_inflow+=element.outflow
+                    total_max_flow_rates+=element.max_flow_rate
+            #so now we have a list of the elements flowing in
+            if self.inflow_transition:
+                self.inflow=min(self.max_flow_rate, self.inflow_transition.max_flow_rate, total_inflow)
+            if self.inflow<total_inflow:
+                for element in currently_inflowing_points:
+                    'check'
+                    # here we determine how much flow comes from each input.
+                    # the easy thing to do is to split it by max flow rates.
+
+                    # then override the outflow of each point.
+                    # here is where having a global timer will be very helpful. we don't step through until we
+                    # we have appropriately sorted the inflow and outflows. OR just need to ensure this is called before element population tracker update.
+
+                    scaler=self.inflow*element.max_flow_rate/total_max_flow_rates
+                    element.outflow=element.outflow*scaler
+
         else:
-            self.inflow=min(self.max_flow_rate, inflow_element.outflow)
+            inflow_element=self.inflow_point
+            if inflow_element.population==0:
+                self.inflow=0
+                return
+            if self.inflow_transition:
+                self.inflow=min(self.max_flow_rate, self.inflow_transition.max_flow_rate, inflow_element.outflow)
+            elif self.inflow_point.name==self.name:
+                # it turns out this is inaccessible if we code properly, as this function will never be called for a
+                # population source.
+                self.inflow=0
+            else:
+                self.inflow=min(self.max_flow_rate, inflow_element.outflow)
 
     def set_outflow(self):
         outflow_element=self.outflow_point
@@ -280,9 +330,39 @@ class Element():
             self.possible_queuing = True
             if self.calc_flow > 0:
                 self.queue_length += (self.calc_flow-self.outflow)
+
+
+
+
+
+
 class Transition():
     def __init__(self, max_flow_rate):
         self.max_flow_rate=max_flow_rate
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 class Outdoors():
     def __init__(self):
@@ -304,7 +384,6 @@ class Door(Transition):
 class Floor():
     'made up of elements. is this sensible?'
     'each floor makes it into a building.'
-
 class Building():
     'made up of floors. is this sensible?'
     'has a total population. run "step_time" through this building '
@@ -313,15 +392,17 @@ class Person():
     'each person should belong to a group, should be in an element, should have a speed'
     'you should be able to change most of these'
 
-    def __init__(self, speed, group, element):
-        assert type(group) is Group, "need to ensure the group is a group"
-        assert type(element) is element, "need to ensure the element is an element"
+    def __init__(self, speed):# need to create groups and elements and people, then add, group, element):
+        #assert type(group) is Group, "need to ensure the group is a group"
+        #assert type(element) is element, "need to ensure the element is an element"
         self.speed=speed
-        self.group=group
-        self.element=element
+        self.group=None
+        self.element=None
 
     def set_group(self, group):
+
         self.group=group
+        group.add_agent(self)
 
     def get_group(self):
         return self.group
@@ -347,19 +428,37 @@ class Group():
     'CURRENTLY THIS METHOD ONLY WORKS WHEN A GROUP IS IN TWO ELEMENTS.'
     'NEED TO BE ABLE TO INCREASE THIS TO ARBITRARY GROUPS'
 
-    def __init__(self,name, agents:list, current_element:Element):
-        assert type(agents) is list, 'need to input a list of agents'
+    def __init__(self,name, agents=None):#, agents:list, current_element:Element):
+        #assert type(agents) is list, 'need to input a list of agents'
         self.agents=agents
-        #### need to implement a queue here.
-        self.population=len(self.agents)
+        if self.agents is not None:
+            self.queue=collections.deque(agents)
+            self.population = len(self.agents)
+
         self.name=name
-        self.current_element=current_element
+        self.current_element=None
         self.flow_through_elements=0
 
     def add_agent(self, agent:Person):
         'Here we can add a person to the group'
         assert type(agent) is Person, 'agent is not a person'
+        if self.agents==None:
+            self.agents=[]
         self.agents.append(agent)
+        self.queue.append(agent)
+
+    def remove_agent(self, agent:Person):
+        assert type(agent) is Person, 'agent is not a person'
+        if self.agents==None:
+            return
+        if agent in self.agents:
+            self.agents.remove(agent)
+            self.queue.pop(agent)
+        else:
+            print('agent is not in this group')
+
+        if len(self.agents)==0:
+            self.agents=None
 
     def get_agents(self):
         return self.agents
@@ -418,19 +517,19 @@ def step_time(environment, global_timer):
     # and is not an issue if you define where the flows will be coming from (e.g. staircase empties floor by floor)
     for element in environment:
         element.step_time()
-        #print('time', global_timer.global_time)
-        #print('element name', element.name)
+        print('time', global_timer.global_time)
+        print('element name', element.name)
         #print('element_speed: m/config.timestep', element.speed)
-        #print('element_population', element.population)
+        print('element_population', element.population)
         #print('element_k', element.k)
         #print('element_a', element.a)
-        #print('element_calc_flow: ppl/config.timestep', element.calc_flow)
-        #print('element_inflow', element.inflow)
-        #print('element_outflow', element.outflow)
+        print('element_calc_flow: ppl/config.timestep', element.calc_flow)
+        print('element_inflow', element.inflow)
+        print('element_outflow', element.outflow)
         #print('element_density', element.density)
         #print(element.name + "\t popul: {0:9.2f} \t outf: {1:9.2f} \t infl: {2:9.2f} \t front: {3:9.2f} \t back : {4:9.2f}".format(element.population, element.outflow, element.inflow, element.position_of_front, element.position_of_back))
 
-        #print('############################################################################################################')
+        print('############################################################################################################')
 def check_people_in_building(environment):
     population=0
     for element in environment:
@@ -439,5 +538,16 @@ def check_people_in_building(environment):
         return True
     else:
         return False
+
+
+person=Person(10)
+person2=Person(4)
+
+agents=[]
+agents.append(person)
+agents.append(person2)
+group=Group('group', agents)
+#person.set_group(group)
+#group.add_agent(person2)
 
 
