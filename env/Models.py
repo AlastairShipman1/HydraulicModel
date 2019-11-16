@@ -265,7 +265,11 @@ class Element():
                 if element.outflow>0:
                     currently_inflowing_points.append(element)
                     total_inflow+=element.outflow
-                    total_max_flow_rates+=element.max_flow_rate
+
+                    if element.outflow_transition:
+                        total_max_flow_rates += min(element.max_flow_rate, element.outflow_transition.max_flow_rate)
+                    else:
+                        total_max_flow_rates +=element.max_flow_rate
             #so now we have a list of the elements flowing in
             if self.inflow_transition:
                 self.inflow=min(self.max_flow_rate, self.inflow_transition.max_flow_rate, total_inflow)
@@ -279,7 +283,7 @@ class Element():
                     # here is where having a global timer will be very helpful. we don't step through until we
                     # we have appropriately sorted the inflow and outflows. OR just need to ensure this is called before element population tracker update.
 
-                    scaler=self.inflow*element.max_flow_rate/total_max_flow_rates
+                    scaler=self.inflow*(min(element.max_flow_rate, element.outflow_transition.max_flow_rate))/total_max_flow_rates
                     element.outflow=element.outflow*scaler
 
         else:
@@ -517,6 +521,7 @@ def step_time(environment, global_timer):
     # and is not an issue if you define where the flows will be coming from (e.g. staircase empties floor by floor)
     for element in environment:
         element.step_time()
+    for element in environment:
         print('time', global_timer.global_time)
         print('element name', element.name)
         #print('element_speed: m/config.timestep', element.speed)
