@@ -265,26 +265,26 @@ class Element():
                 if element.outflow>0:
                     currently_inflowing_points.append(element)
                     total_inflow+=element.outflow
+                    print(element.name, element.outflow)
 
                     if element.outflow_transition:
                         total_max_flow_rates += min(element.max_flow_rate, element.outflow_transition.max_flow_rate)
                     else:
                         total_max_flow_rates +=element.max_flow_rate
             #so now we have a list of the elements flowing in
-            if self.inflow_transition:
-                self.inflow=min(self.max_flow_rate, self.inflow_transition.max_flow_rate, total_inflow)
+
+            'this should not check for inflow.transition, as below. you have transitions between each element, so there is no "one" inflow transition'
+            print(self.max_flow_rate)
+            print(total_inflow)
+            self.inflow=min(self.max_flow_rate, total_inflow)
+            print(self.inflow)
+            print('end of this printing sesh', self.name)
             if self.inflow<total_inflow:
                 for element in currently_inflowing_points:
-                    'check'
-                    # here we determine how much flow comes from each input.
-                    # the easy thing to do is to split it by max flow rates.
-
-                    # then override the outflow of each point.
-                    # here is where having a global timer will be very helpful. we don't step through until we
-                    # we have appropriately sorted the inflow and outflows. OR just need to ensure this is called before element population tracker update.
-
+                    #here we rescale the outflow of each inflow_point, so that they add up to the max that this element can take.
+                    #they are scaled by their maximum flow rates. this is an optimistic outcome.
                     scaler=self.inflow*(min(element.max_flow_rate, element.outflow_transition.max_flow_rate))/total_max_flow_rates
-                    element.outflow=element.outflow*scaler
+                    element.override_outflow(scaler)
 
         else:
             inflow_element=self.inflow_point
@@ -310,8 +310,11 @@ class Element():
     def get_outflow(self):
         return self.outflow
 
+    def override_outflow(self, outflow):
+        self.outflow=outflow
+
     def update_population_tracker(self):
-        ' here we access a class called population tracker, which checks the length of the queue relative to population etc'
+        ' here we access a the population tracker, which checks the current population of the element, and any associated queues'
         self.population+=self.inflow
         self.population-=self.outflow
         if self.population<0:# and self.position_of_back>0.95:
@@ -332,40 +335,12 @@ class Element():
         #here we initialise the queues
         if self.calc_flow > self.outflow_point.max_flow_rate:
             self.possible_queuing = True
-            if self.calc_flow > 0:
+            if self.outflow > 0:
                 self.queue_length += (self.calc_flow-self.outflow)
-
-
-
-
-
 
 class Transition():
     def __init__(self, max_flow_rate):
         self.max_flow_rate=max_flow_rate
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 class Outdoors():
@@ -396,12 +371,12 @@ class Person():
     'each person should belong to a group, should be in an element, should have a speed'
     'you should be able to change most of these'
 
-    def __init__(self, speed):# need to create groups and elements and people, then add, group, element):
+    def __init__(self, speed, group=None, element=None):# need to create groups and elements and people, then add, group, element):
         #assert type(group) is Group, "need to ensure the group is a group"
         #assert type(element) is element, "need to ensure the element is an element"
         self.speed=speed
-        self.group=None
-        self.element=None
+        self.group=group
+        self.element=element
 
     def set_group(self, group):
 
@@ -432,7 +407,7 @@ class Group():
     'CURRENTLY THIS METHOD ONLY WORKS WHEN A GROUP IS IN TWO ELEMENTS.'
     'NEED TO BE ABLE TO INCREASE THIS TO ARBITRARY GROUPS'
 
-    def __init__(self,name, agents=None):#, agents:list, current_element:Element):
+    def __init__(self,name, agents=None, element=None):#, agents:list, current_element:Element):
         #assert type(agents) is list, 'need to input a list of agents'
         self.agents=agents
         if self.agents is not None:
@@ -440,7 +415,7 @@ class Group():
             self.population = len(self.agents)
 
         self.name=name
-        self.current_element=None
+        self.current_element=element
         self.flow_through_elements=0
 
     def add_agent(self, agent:Person):
@@ -450,6 +425,7 @@ class Group():
             self.agents=[]
         self.agents.append(agent)
         self.queue.append(agent)
+        self.population=len(self.agents)
 
     def remove_agent(self, agent:Person):
         assert type(agent) is Person, 'agent is not a person'
@@ -470,7 +446,7 @@ class Group():
     def set_current_element(self, element:Element):
         assert type(element) is Element, 'need to input an element'
         # need to be able to override this from the element, once population has dropped to zero?
-
+        # or perhaps completely compartmentalise this, and just keep things in track by the global timer.
         self.current_element=element
 
     def set_next_element(self, element:Element):
@@ -496,7 +472,8 @@ class Group():
 
         if current_pop == 0:
             self.set_current_element(self.next_element)
-            # need to set next element somehow?
+            next_element=self.next_element.outflow_point
+            self.set_next_element(next_element)
 
     def get_population_in_current_element(self):
         population=0
@@ -543,16 +520,5 @@ def check_people_in_building(environment):
         return True
     else:
         return False
-
-
-person=Person(10)
-person2=Person(4)
-
-agents=[]
-agents.append(person)
-agents.append(person2)
-group=Group('group', agents)
-#person.set_group(group)
-#group.add_agent(person2)
 
 
