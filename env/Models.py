@@ -96,7 +96,8 @@ class Element():
         self.queuing = False
         self.queue_population=0
 
-        # need to implement a queue for the population, to make sure that it is first in first out.
+
+        # need to implement a queue for the population, to make sure that it is first in first out. DO THIS IN 'GROUP' OBJECTS INSTEAD
         # self.people = deque
         self.max_population = np.inf  # we should define the max population density, and then calculate the max element population
         self.set_speed()
@@ -107,12 +108,19 @@ class Element():
     #implement basic functions for speed, density, flow rate
     def step_time(self):
         'each timestep, we need to check how many people are coming into the element, how many people are leaving, whether people have got to point of leaving'
-        ' if there is a queue, whether it decreases in length or increases in length'
+        'if there is a queue, whether it decreases in length or increases in length'
+
+        'RENAME THIS TO PROVISIONAL INFLOW OUTFLOWS?'
+        'BECAUSE FOR THE MULTIPLE INFLOWS WE NEED TO ENSURE THAT ALL ELEMENTS COMMUNICATE'
 
         #you need to check on the order of these things:
             # check inflow, check outflow, calc_flow_rate
+            # correlate between elements that this all works, and if not, override.
+
+            # then, once it has all been coordinated
             # check queue length, update population
-            #
+
+            # Maybe just move the population tracker to a different function?
 
 
         if self.population>0:
@@ -265,24 +273,18 @@ class Element():
                 if element.outflow>0:
                     currently_inflowing_points.append(element)
                     total_inflow+=element.outflow
-                    print(element.name, element.outflow)
-
                     if element.outflow_transition:
                         total_max_flow_rates += min(element.max_flow_rate, element.outflow_transition.max_flow_rate)
                     else:
                         total_max_flow_rates +=element.max_flow_rate
             #so now we have a list of the elements flowing in
 
-            'this should not check for inflow.transition, as below. you have transitions between each element, so there is no "one" inflow transition'
-            print(self.max_flow_rate)
-            print(total_inflow)
+            'this does not check for inflow.transition, as below. you have transitions between each element, so there is no "one" inflow transition'
             self.inflow=min(self.max_flow_rate, total_inflow)
-            print(self.inflow)
-            print('end of this printing sesh', self.name)
             if self.inflow<total_inflow:
                 for element in currently_inflowing_points:
                     #here we rescale the outflow of each inflow_point, so that they add up to the max that this element can take.
-                    #they are scaled by their maximum flow rates. this is an optimistic outcome.
+                    #they are scaled proportionally by their maximum flow rates. this is an optimistic outcome.
                     scaler=self.inflow*(min(element.max_flow_rate, element.outflow_transition.max_flow_rate))/total_max_flow_rates
                     element.override_outflow(scaler)
 
@@ -332,11 +334,12 @@ class Element():
                 self.possible_queuing = False
                 self.queue_length = 0
 
-        #here we initialise the queues
-        if self.calc_flow > self.outflow_point.max_flow_rate:
+        #here we initialise the queues THIS DOESN'T WORK, BECAUSE OUTFLOW/INFLOW RATES ARE RECOMPUTED BETWEEN ELEMENTS.
+        # SO WE NEED TO UPDATE QUEUE LENGTH AFTER THIS.
+        if self.calc_flow > self.outflow:
             self.possible_queuing = True
             if self.outflow > 0:
-                self.queue_length += (self.calc_flow-self.outflow)
+                self.queue_population += (self.calc_flow-self.outflow)
 
 class Transition():
     def __init__(self, max_flow_rate):
@@ -506,11 +509,11 @@ def step_time(environment, global_timer):
         #print('element_k', element.k)
         #print('element_a', element.a)
         print('element_calc_flow: ppl/config.timestep', element.calc_flow)
-        print('element_inflow', element.inflow)
+        #print('element_inflow', element.inflow)
         print('element_outflow', element.outflow)
         #print('element_density', element.density)
         #print(element.name + "\t popul: {0:9.2f} \t outf: {1:9.2f} \t infl: {2:9.2f} \t front: {3:9.2f} \t back : {4:9.2f}".format(element.population, element.outflow, element.inflow, element.position_of_front, element.position_of_back))
-
+        print('element.queue pop', element.queue_population)
         print('############################################################################################################')
 def check_people_in_building(environment):
     population=0
