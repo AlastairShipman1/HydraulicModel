@@ -12,28 +12,42 @@ need to figure out how to actually run tests.
 '''
 
 import Models
+import Element
+import Transition
+import GlobalClasses
 import config
 import numpy as np
 
 
-global_timer=Models.Global_timer()
+global_timer=GlobalClasses.Global_timer()
 test_environment1=[]
 
-stairs=Models.Staircase(name='stairs', length=3.31, width=1.8, element_type='Staircase', population=50, global_timer=global_timer, boundary_layer1='Stairs', boundary_layer2='Stairs', tread=11, riser=7)
-stairs2=Models.Staircase(name='stairs2', length=3.31, width=1.8, element_type='Staircase', population=50, global_timer=global_timer, boundary_layer1='Stairs', boundary_layer2='Stairs', tread=11, riser=7)
+stairs=Element.Staircase(name='stairs', length=3.31, width=2.8, element_type='Staircase', population=50, global_timer=global_timer, boundary_layer1='Stairs', boundary_layer2='Stairs', tread=11, riser=7)
+stairs2=Element.Staircase(name='stairs2', length=3.31, width=2.8, element_type='Staircase', population=0, global_timer=global_timer, boundary_layer1='Stairs', boundary_layer2='Stairs', tread=11, riser=7)
+stairs3=Element.Staircase(name='stairs3', length=3.31, width=2.8, element_type='Staircase', population=50, global_timer=global_timer, boundary_layer1='Stairs', boundary_layer2='Stairs', tread=11, riser=7)
 
-corridor=Models.Corridor(name='corridor', length=10, width=1.8, element_type='Corridor', population=0, global_timer=global_timer, boundary_layer1='Corridor', boundary_layer2='Corridor')
-door=Models.Door(1.3*config.timestep)
-door2=Models.Door(np.inf)
+
+corridor2=Element.Corridor(name='corridor2', length=40, width=1.8, element_type='Corridor', population=0, global_timer=global_timer, boundary_layer1='Corridor', boundary_layer2='Corridor')
+corridor=Element.Corridor(name='corridor', length=10, width=1.8, element_type='Corridor', population=0, global_timer=global_timer, boundary_layer1='Corridor', boundary_layer2='Corridor')
+
+door=Transition.Door(1.3*config.timestep)
+door2=Transition.Door(np.inf)
 outdoors=Models.Outdoors()
 
 stairs.set_inflow_point(stairs)
 stairs.set_outflow_point(corridor, door2)
 stairs.set_initial_density(1.5)
 
-stairs2.set_inflow_point(stairs2)
-stairs2.set_outflow_point(corridor, door2)
-stairs2.set_initial_density(1.5)
+stairs3.set_inflow_point(stairs3)
+stairs3.set_outflow_point(corridor2, door2)
+stairs3.set_initial_density(1.5)
+
+corridor2.set_inflow_point(stairs3)
+corridor2.set_outflow_point(stairs2, door2)
+
+stairs2.set_inflow_point(corridor2, door2)
+stairs2.set_outflow_point(corridor)
+
 
 inflow_points=[]
 inflow_points.append(stairs)
@@ -44,6 +58,8 @@ corridor.set_outflow_point(outdoors, door)
 
 test_environment1.append(stairs)
 test_environment1.append(stairs2)
+test_environment1.append(stairs3)
+test_environment1.append(corridor2)
 test_environment1.append(corridor)
 
 

@@ -14,15 +14,18 @@ need to figure out how to actually run tests.
 import Models
 import config
 import numpy as np
+import Element
+import Transition
+from GlobalClasses import Global_timer
 
 
-global_timer=Models.Global_timer()
+global_timer=Global_timer()
 test_environment1=[]
 
-stairs=Models.Staircase(name='stairs', length=3.31, width=1.8, element_type='Staircase', population=50, global_timer=global_timer, boundary_layer1='Stairs', boundary_layer2='Stairs', tread=11, riser=7)
-corridor=Models.Corridor(name='corridor', length=10, width=1.8, element_type='Corridor', population=0, global_timer=global_timer, boundary_layer1='Corridor', boundary_layer2='Corridor')
-door=Models.Door(1.3*config.timestep)
-door2=Models.Door(np.inf)
+stairs=Element.Staircase(name='stairs', length=3.31, width=1.8, element_type='Staircase', population=50, global_timer=global_timer, boundary_layer1='Stairs', boundary_layer2='Stairs', tread=11, riser=7)
+corridor=Element.Corridor(name='corridor', length=10, width=1.8, element_type='Corridor', population=0, global_timer=global_timer, boundary_layer1='Corridor', boundary_layer2='Corridor')
+door=Transition.Door(1.3*config.timestep)
+door2=Transition.Door(np.inf)
 outdoors=Models.Outdoors()
 
 stairs.set_inflow_point(stairs)

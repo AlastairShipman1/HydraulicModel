@@ -2,11 +2,20 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="964ce4b7-c368-4c1a-9dff-a0866ea0bd3c" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/env/Element.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/env/GlobalClasses.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/env/Transition.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Documents/New folder/Lectur 4 outline.docx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Documents/New folder/Lecture 1 outline.docx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Documents/Lecture outlines/Lecture 1/Lecture 1.pptx" beforeDir="false" afterPath="$PROJECT_DIR$/Documents/Lecture outlines/Lecture 1/Lecture 1.pptx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Documents/Lecture outlines/Lecture 4/Lectur 4 outline.docx" beforeDir="false" afterPath="$PROJECT_DIR$/Documents/Lecture outlines/Lecture 4/Lectur 4 outline.docx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Documents/Lecture outlines/Lecture 4/Lecture 4 Emergencies.pptx" beforeDir="false" afterPath="$PROJECT_DIR$/Documents/Lecture outlines/Lecture 4/Lecture 4 Emergencies.pptx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Documents/Lecture outlines/Lecture 4/Lecture 4 Example scenario.pptx" beforeDir="false" afterPath="$PROJECT_DIR$/Documents/Lecture outlines/Lecture 4/Lecture 4 Example scenario.pptx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Documents/Lecture outlines/Lecture 4/Lecture 4 Experiments.pptx" beforeDir="false" afterPath="$PROJECT_DIR$/Documents/Lecture outlines/Lecture 4/Lecture 4 Experiments.pptx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Documents/Lecture outlines/Lecture 4/Lecture 4 Importance of data.pptx" beforeDir="false" afterPath="$PROJECT_DIR$/Documents/Lecture outlines/Lecture 4/Lecture 4 Importance of data.pptx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Documents/Lecture outlines/Lecture 4/Lecture 4 Real world data.pptx" beforeDir="false" afterPath="$PROJECT_DIR$/Documents/Lecture outlines/Lecture 4/Lecture 4 Real world data.pptx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/env/Models.py" beforeDir="false" afterPath="$PROJECT_DIR$/env/Models.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/env/Test2.py" beforeDir="false" afterPath="$PROJECT_DIR$/env/Test2.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/env/Multiple_entry_test.py" beforeDir="false" afterPath="$PROJECT_DIR$/env/Multiple_entry_test.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/env/Test1.py" beforeDir="false" afterPath="$PROJECT_DIR$/env/Test1.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -36,6 +45,11 @@
     <property name="node.js.selected.package.tslint" value="(autodetect)" />
     <property name="settings.editor.selected.configurable" value="preferences.lookFeel" />
   </component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\Alastair\Dropbox\Imperial College\PhD\Projects\Course development\Student shapers\env" />
+    </key>
+  </component>
   <component name="RunDashboard">
     <option name="ruleStates">
       <list>
@@ -48,7 +62,7 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Python.Test1">
+  <component name="RunManager" selected="Python.Multiple_entry_test">
     <configuration name="Main2" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <module name="Student shapers" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -161,8 +175,8 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.Test1" />
         <item itemvalue="Python.Multiple_entry_test" />
+        <item itemvalue="Python.Test1" />
         <item itemvalue="Python.Models" />
         <item itemvalue="Python.Main2" />
         <item itemvalue="Python.main" />
@@ -196,7 +210,10 @@
       <workItem from="1574425169213" duration="248000" />
       <workItem from="1574675472651" duration="2363000" />
       <workItem from="1574934509748" duration="1691000" />
-      <workItem from="1574944290627" duration="216000" />
+      <workItem from="1574944290627" duration="295000" />
+      <workItem from="1574945656854" duration="2691000" />
+      <workItem from="1575302371252" duration="1216000" />
+      <workItem from="1575383774148" duration="4327000" />
     </task>
     <servers />
   </component>
@@ -217,10 +234,10 @@
     </option>
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/Student_shapers$Test1.coverage" NAME="Test1 Coverage Results" MODIFIED="1574675508204" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/env" />
+    <SUITE FILE_PATH="coverage/Student_shapers$Test1.coverage" NAME="Test1 Coverage Results" MODIFIED="1574947460904" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/env" />
     <SUITE FILE_PATH="coverage/Student_shapers$Models.coverage" NAME="Models Coverage Results" MODIFIED="1573906785298" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/env" />
     <SUITE FILE_PATH="coverage/Student_shapers$main.coverage" NAME="main Coverage Results" MODIFIED="1572460236627" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/env" />
-    <SUITE FILE_PATH="coverage/Student_shapers$Multiple_entry_test.coverage" NAME="Multiple_entry_test Coverage Results" MODIFIED="1574007926326" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/env" />
+    <SUITE FILE_PATH="coverage/Student_shapers$Multiple_entry_test.coverage" NAME="Multiple_entry_test Coverage Results" MODIFIED="1575384255055" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/env" />
     <SUITE FILE_PATH="coverage/Student_shapers$Main2.coverage" NAME="Main2 Coverage Results" MODIFIED="1573732234641" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/env" />
   </component>
 </project>
