@@ -28,7 +28,6 @@ class Building():
         for element in self.building:
             element.step_time()
 
-
 class Person():
     'each person should belong to a group, should be in an element, should have a speed'
     'you should be able to change most of these'
@@ -82,24 +81,18 @@ class elementQueue():
         self.queue.append(agent)
 
 class Group():
-
+    '''
     'what we want to do here is track individual groups as they move through the environment.'
-    'this means checking their position, when they start in one element, leave another, the average speed'
-    'a reference to each person, a way to add agents, a way to remove agents, etc'
-    'update this object everytime outflow is called in "Element" objects '
-    'CURRENTLY THIS METHOD ONLY WORKS WHEN A GROUP IS IN TWO ELEMENTS.'
-    'NEED TO BE ABLE TO INCREASE THIS TO ARBITRARY elements'
-
-    def __init__(self,name, agents=None, element=None):#, agents:list, current_element:Element):
-        #assert type(agents) is list, 'need to input a list of agents'
+    what we do is initially define the group population, the starting element and the route they will take (a list and a dict of queues)
+    then each time that element flows people out of it, it should call the 'flow_discrete_people' function.
+    this will then update the locations of each individual in that group.
+    '''
+    def __init__(self,name, agents=None, element=None):
         self.agents=agents
         if self.agents is not None:
-            self.initial_queue=elementQueue(agents)
             self.population = len(self.agents)
 
         self.name=name
-        self.current_element=element
-        self.flow_through_elements=0
 
     def add_agent(self, agent:Person):
         'Here we can add a person to the group'
@@ -108,8 +101,9 @@ class Group():
             self.agents=[]
         if agent not in self.agents:
             self.agents.append(agent)
-            self.queue.append(agent)
             self.population=len(self.agents)
+            agent_location=agent.get_element().name
+            self.route_populations[agent_location]+=1
         else:
             print('Agent already in this group')
 
@@ -119,7 +113,6 @@ class Group():
             return
         if agent in self.agents:
             self.agents.remove(agent)
-            self.queue.pop(agent)
         else:
             print('agent is not in this group')
 
@@ -129,76 +122,45 @@ class Group():
     def get_agents(self):
         return self.agents
 
-    def set_initial_element(self, element):
+    def _set_initial_element(self, element):
         for agent in self.agents:
             agent.set_element(element)
+        self.route_populations[element.name]=len(self.agents)
 
-    def set_current_element(self, element:Element):
-        assert type(element) is Element, 'need to input an element'
-        # need to be able to override this from the element, once population has dropped to zero?
-        # or perhaps completely compartmentalise this, and just keep things in track by the global timer.
-        self.current_element=element
+    def set_initial_path(self, starting_element):
+        self.route=[]
+        self.route_populations={}
+        self.route_queues={}
+        self.route_flow_rates={}
 
-    def get_current_elements(self):
-        current_elements=[]
-        for agent in self.agents:
-            if agent.get_element() not in current_elements:
-                current_elements.append(agent.get_element())
+        current_element = starting_element
+        checking = True
+        while checking:
+            self.route.append(current_element)
+            self.route_queues[current_element.name]=elementQueue()
+            self.route_flow_rates[current_element.name]=0
+            self.route_populations[current_element.name]=0
 
-    def set_next_element(self, element:Element):
-        assert type(element) is Element, 'need to input an element'
-        self.next_element=element
+            current_element=current_element.outflow_point
+            next_element = current_element.outflow_point
+            if next_element is type(Outdoors):
+                checking=False
 
-    def flow_discrete_individuals(self, flow_rate, outflowing_element):
-        'Here we want to take the cumulative flow rate from the element, and once it gets above 1, flow an individual from the group '
-        'from current element to next element'
-        'once the population in current element==0, redefine current and next elements'
-        'keep the model below as continuous, as it will remain accurate'
-        'however, you will want this bit to be a discrete add-on'
-        'you also want a queue of people, so that first in==first out'
-        'this currently only allows the group to straddle 2 elements.'
-        'you will want this to be scalable to n elements'
+        #here we set the initial elements for all the agents, and the initial population of the beginning of the route.
+        self._set_initial_element(starting_element)
 
-        #YOUR ISSUE IS YOU WANT THIS TO HAPPEN AT RUN TIME. IT MIGHT BE THE CASE THAT YOU NEED INSTEAD TO DO THIS FOR THE ENTIRE
-        # PATH BEFORE RUNNING.
-        # THIS WILL LEAD TO MEMORY LEAK. IT WOULD BE BETTER TO DO IT DYNAMICALLY, BUT WILL THIS WORK?
-
-        self.flow_through_elements+=flow_rate
-        if self.flow_through_elements>1:
+    def flow_discrete_individuals(self, outflowing_element):
+        'Here we want to take the cumulative flow rate from the outflowing element, and once it gets above 1, flow an individual from the group '
+        locator=outflowing_element.name
+        self.route_flow_rates[locator]+=outflowing_element.outflow
+        # assumes flow won't go above 1 person/sec? reasonable for fractional time, or normal corridors. if you have
+        # particularly wide doors, with multiple inflows, this might not work.
+        if self.route_flow_rates[locator]>1:
             'pop the next person from the deque, change element to next element'
-            self.flow_through_elements-=1
-            interim_agent=self.queue.pop()
-            self.interim_queue.append(interim_agent)
+            self.route_flow_rates[locator]-=1
+            interim_agent=self.route_queues[outflowing_element.name].pop()
+            self.route_queues[outflowing_element.outflow_point].add_agent(interim_agent)
 
-        if len(self.queue)==0:
-            for agent_number in range(len(self.interim_queue)):
-                agent=self.interim_queue.pop()
-                self.queue.append(agent)
-
-
-        # i think you want to get rid of these: the group is defined by the elements of its agents, not the other way around.
-        current_pop = self.get_population_in_current_element()
-        next_pop = self.get_population_in_next_element()
-
-        if current_pop == 0:
-            self.set_current_element(self.next_element)
-            next_element=self.next_element.outflow_point
-            self.set_next_element(next_element)
-
-
-    def get_population_in_current_element(self):
-        population=0
-        for agent in self.agents:
-            if agent.current_element==self.current_element:
-                population+=1
-        return population
-
-    def get_population_in_next_element(self):
-        population=0
-        for agent in self.agents:
-            if agent.current_element==self.next_element:
-                population+=1
-        return population
 
 #Basic functions for running the model.
 def step_time(environment, global_timer):
@@ -223,6 +185,7 @@ def step_time(environment, global_timer):
         #print(element.name + "\t popul: {0:9.2f} \t outf: {1:9.2f} \t infl: {2:9.2f} \t front: {3:9.2f} \t back : {4:9.2f}".format(element.population, element.outflow, element.inflow, element.position_of_front, element.position_of_back))
         print('element.queue pop', element.queue_population)
         print('############################################################################################################')
+
 def check_people_in_building(environment):
     population=0
     for element in environment:
