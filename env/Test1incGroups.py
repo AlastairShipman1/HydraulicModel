@@ -4,7 +4,7 @@ Test1 is a single floor, made up of a staircase, flowing into a corridor and the
 The population is 50, at an initial density of 1.5, all located at the top of the stairs.
 
 
----- The total evacuation time should be 53.4s. 
+---- The total evacuation time should be 53.4s.
 ---- The time for the group to start exiting the stairs should be 5.1s
 
 need to figure out how to actually run tests.
@@ -13,6 +13,8 @@ need to figure out how to actually run tests.
 
 import Models
 import Outdoors
+import Group
+import Person
 import config
 import numpy as np
 import Element
@@ -29,18 +31,27 @@ door=Transition.Door(1.3*config.timestep)
 door2=Transition.Door(np.inf)
 outdoors=Outdoors.Outdoors()
 
+testGroup=Group.Group('group', global_timer)
+
+for i in range(stairs.population):
+    agent=Person.Person(1, group=None, element=stairs)
+    testGroup.add_agent_to_group(agent)
+
+
 stairs.set_inflow_point(stairs)
 stairs.set_outflow_point(corridor, door2)
 stairs.set_initial_density(1.5)
 corridor.set_inflow_point(stairs, door2)
 corridor.set_outflow_point(outdoors, door)
 
+testGroup.set_initial_path(stairs)
 test_environment1.append(stairs)
 test_environment1.append(corridor)
 
+testGroups=[testGroup]
 
 people_in_building=True
 while(people_in_building):
-    Models.step_time(test_environment1, global_timer)
+    Models.step_time(test_environment1, global_timer, groups=testGroups)
     people_in_building=Models.check_people_in_building(test_environment1)
 print(global_timer.global_time)
