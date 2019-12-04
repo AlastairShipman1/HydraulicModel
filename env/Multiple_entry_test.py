@@ -16,6 +16,9 @@ import Element
 import Transition
 import GlobalClasses
 import config
+import Outdoors
+import Group
+import Person
 import numpy as np
 
 
@@ -32,7 +35,7 @@ corridor=Element.Corridor(name='corridor', length=10, width=1.8, element_type='C
 
 door=Transition.Door(1.3*config.timestep)
 door2=Transition.Door(np.inf)
-outdoors=Models.Outdoors()
+outdoors=Outdoors.Outdoors()
 
 stairs.set_inflow_point(stairs)
 stairs.set_outflow_point(corridor, door2)
@@ -62,9 +65,19 @@ test_environment1.append(stairs3)
 test_environment1.append(corridor2)
 test_environment1.append(corridor)
 
+'''
+#UNCOMMENT THIS IF YOU WANT TO INCLUDE GROUPS
+testGroup=Group.Group('group', global_timer)
+for i in range(stairs.population):
+    agent=Person.Person(1)
+    testGroup.add_agent_to_group(agent)
+testGroup.set_initial_path(stairs)
+testGroups=[testGroup]
+'''
+
 
 people_in_building=True
 while(people_in_building):
-    Models.step_time(test_environment1, global_timer)
+    Models.step_time(test_environment1, global_timer)#, groups=testGroups)
     people_in_building=Models.check_people_in_building(test_environment1)
 print(global_timer.global_time)

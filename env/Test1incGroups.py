@@ -31,11 +31,6 @@ door=Transition.Door(1.3*config.timestep)
 door2=Transition.Door(np.inf)
 outdoors=Outdoors.Outdoors()
 
-testGroup=Group.Group('group', global_timer)
-
-for i in range(stairs.population):
-    agent=Person.Person(1, group=None, element=stairs)
-    testGroup.add_agent_to_group(agent)
 
 
 stairs.set_inflow_point(stairs)
@@ -44,10 +39,16 @@ stairs.set_initial_density(1.5)
 corridor.set_inflow_point(stairs, door2)
 corridor.set_outflow_point(outdoors, door)
 
-testGroup.set_initial_path(stairs)
+
 test_environment1.append(stairs)
 test_environment1.append(corridor)
 
+
+testGroup=Group.Group('group', global_timer)
+for i in range(stairs.population):
+    agent=Person.Person(1, group=None, element=stairs)
+    testGroup.add_agent_to_group(agent)
+testGroup.set_initial_path(stairs)
 testGroups=[testGroup]
 
 people_in_building=True

@@ -22,7 +22,6 @@ class elementQueue():
     def __len__(self):
         return len(self.queue)
 
-
 class Group():
     '''
      what we want to do here is track individual groups as they move through the environment.
@@ -46,6 +45,7 @@ class Group():
         self.start_time=self.global_timer.global_time
         self.updating=True
         self.elements=[]
+        self.time=0
 
     def step_time(self):
         'you will need to make sure that other groups are not also in the element?'
@@ -60,6 +60,7 @@ class Group():
                     if(self.check_element_is_flowing(element)):
                         self.flow_discrete_individuals(element)
         self.check_group_in_building()
+        self.time+=config.timestep
 
     def add_agent_to_group(self, agent:Person):
         'Here we can add a person to the group'
@@ -68,7 +69,7 @@ class Group():
         if agent not in self.agents:
             self.agents.append(agent)
             self.population=len(self.agents)
-            agent_location=agent.get_element().name
+            #agent_location=agent.get_element().name
 
         else:
             print('Agent already in this group')

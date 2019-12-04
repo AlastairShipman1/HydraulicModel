@@ -9,16 +9,17 @@ import Models
 
 
 class Person():
-    'each person should belong to a group, should be in an element, should have a speed'
+    'each person should belong to a group, should be in an element'
     'you should be able to change most of these'
+    'do we want to run things from the hydraulic model?, or do we want to run things from here?'
+    'Or do we want the option?'
+    'If we want the option, then, for agent based models, do we just want to scale speed? if so, how do work out density?'
 
-    def __init__(self, speed, group=None, element=None):# need to create groups and elements and people, then add, group, element):
-        #assert type(group) is Group, "need to ensure the group is a group"
-        #assert type(element) is element, "need to ensure the element is an element"
-        self.speed=speed
+    'we initially run things as a hydraulic model. if you want to develop further, then focus on it later'
+
+    def __init__(self, group=None, element=None):
         self.group=group
         self.element=element
-        self.next_element= None
 
     def set_group(self, group):
         self.group=group
